@@ -56,6 +56,12 @@ namespace DCFApixels.ScriptableVariants
             for (var i = 0; i < fields.Length; i++)
             {
                 var field = fields[i];
+                if (!field.DeclaringType.IsInstanceOfType(parent))
+                {
+                    // The parent type does not declare this field (see VariantTypeSelectionAttribute); it stays local.
+                    continue;
+                }
+
                 var parentValue = field.GetValue(parent);
                 var childValue = field.GetValue(child);
                 var merged = MergeField(field, parentValue, childValue, field.Name, overridePaths, cloneContext);
@@ -103,8 +109,9 @@ namespace DCFApixels.ScriptableVariants
             ScriptableVariant destination,
             string propertyPath)
         {
-            if (source == null || destination == null || source.GetType() != destination.GetType() ||
-                !TryGetFieldPath(source.GetType(), propertyPath, out var fields))
+            if (source == null || destination == null ||
+                !TryGetFieldPath(source.GetType(), propertyPath, out var fields) ||
+                !fields[0].DeclaringType.IsInstanceOfType(destination))
             {
                 return false;
             }
@@ -139,8 +146,9 @@ namespace DCFApixels.ScriptableVariants
             ScriptableVariant destination,
             string propertyPath)
         {
-            if (source == null || destination == null || source.GetType() != destination.GetType() ||
-                !TryGetFieldPath(source.GetType(), propertyPath, out var fields))
+            if (source == null || destination == null ||
+                !TryGetFieldPath(source.GetType(), propertyPath, out var fields) ||
+                !fields[0].DeclaringType.IsInstanceOfType(destination))
             {
                 return false;
             }

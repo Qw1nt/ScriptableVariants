@@ -13,6 +13,9 @@ All notable changes to this package are documented in this file.
   scripting define selects Tri instead.
 - Added `ScriptableVariantAssetUtility.OverrideChangedValues` for custom editors that need
   automatic overrides after a value change.
+- Added `[VariantTypeSelection(typeof(T))]` and `ScriptableVariant.ParentType`. The attribute
+  widens the accepted parent type from the exact concrete type to any asset assignable to `T`;
+  fields the parent type does not declare stay local.
 
 ## 0.1.2 - 2026-09-04
 

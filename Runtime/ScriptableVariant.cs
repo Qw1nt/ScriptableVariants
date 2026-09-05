@@ -36,12 +36,36 @@ namespace DCFApixels.ScriptableVariants
         [NonSerialized]
         private int _observedParentRevision = -1;
 
+        [NonSerialized]
+        private Type _parentType;
+
         private static readonly List<ScriptableVariant> ActiveVariants = new List<ScriptableVariant>();
 
         /// <summary>The parent asset. Use ScriptableVariant&lt;TSelf&gt; when a typed Parent is convenient.</summary>
         public ScriptableVariant Parent => _variantParent;
 
         public bool HasParent => _variantParent != null;
+
+        /// <summary>
+        /// The type a parent asset must be assignable to. This is the exact concrete type unless the class
+        /// carries <see cref="VariantTypeSelectionAttribute"/>.
+        /// </summary>
+        public Type ParentType
+        {
+            get
+            {
+                if (_parentType == null)
+                {
+                    var selection = (VariantTypeSelectionAttribute) Attribute.GetCustomAttribute(
+                        GetType(),
+                        typeof(VariantTypeSelectionAttribute),
+                        true);
+                    _parentType = selection != null ? selection.ParentType : GetType();
+                }
+
+                return _parentType;
+            }
+        }
 
         /// <summary>The serialized override paths. The returned collection is read-only.</summary>
         public IReadOnlyList<string> OverridePaths
@@ -178,7 +202,9 @@ namespace DCFApixels.ScriptableVariants
 
             if (!IsCompatibleParent(candidate))
             {
-                error = $"Parent must have the exact type {GetType().Name}.";
+                error = ParentType == GetType()
+                    ? $"Parent must have the exact type {GetType().Name}."
+                    : $"Parent must be a {ParentType.Name}.";
                 return false;
             }
 
@@ -415,7 +441,15 @@ namespace DCFApixels.ScriptableVariants
 
         private bool IsCompatibleParent(ScriptableVariant candidate)
         {
-            return candidate == null || candidate.GetType() == GetType();
+            if (candidate == null)
+            {
+                return true;
+            }
+
+            var parentType = ParentType;
+            return parentType == GetType()
+                ? candidate.GetType() == parentType
+                : parentType.IsInstanceOfType(candidate);
         }
 
         private bool EnsureResolved(HashSet<ScriptableVariant> stack)

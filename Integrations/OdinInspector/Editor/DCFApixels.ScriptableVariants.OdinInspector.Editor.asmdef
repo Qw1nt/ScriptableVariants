@@ -1,0 +1,33 @@
+{
+    "name": "DCFApixels.ScriptableVariants.OdinInspector.Editor",
+    "rootNamespace": "DCFApixels.ScriptableVariants.OdinInspector.Editor",
+    "references": [
+        "DCFApixels.ScriptableVariants.Runtime",
+        "DCFApixels.ScriptableVariants.Editor"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [
+        "Sirenix.OdinInspector.Attributes.dll",
+        "Sirenix.OdinInspector.Editor.dll",
+        "Sirenix.Utilities.dll",
+        "Sirenix.Utilities.Editor.dll"
+    ],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "ODIN_INSPECTOR",
+        "!SCRIPTABLE_VARIANTS_PREFER_TRI || !DCFA_SCRIPTABLE_VARIANTS_TRI_2"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.codewriter.triinspector",
+            "expression": "2.0.0",
+            "define": "DCFA_SCRIPTABLE_VARIANTS_TRI_2"
+        }
+    ],
+    "noEngineReferences": false
+}

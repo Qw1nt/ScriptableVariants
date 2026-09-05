@@ -298,6 +298,46 @@ namespace DCFApixels.ScriptableVariants.Tests
         }
 
         [Test]
+        public void ParentMustHaveTheSameConcreteTypeEvenWithSharedBase()
+        {
+            var enemy = CreateVariant();
+            var character = CreateVariant<OtherTestVariant>();
+
+            Assert.That(character.CanAssignParent(enemy, out var error), Is.False);
+            Assert.That(error, Does.Contain("exact type"));
+            Assert.That(ScriptableVariantAssetUtility.SetParent(character, enemy, out error), Is.False);
+            Assert.That(character.Parent, Is.Null);
+            Assert.That(enemy.CanAssignParent(CreateVariant(), out error), Is.True);
+        }
+
+        [Test]
+        public void VariantTypeSelectionAllowsAssignableParentsAndKeepsUnsharedFieldsLocal()
+        {
+            var parent = CreateVariant<FamilyTestVariant>();
+            parent.SetNumber(12);
+
+            var child = CreateVariant<FamilyChildTestVariant>();
+            child.SetExtra(7);
+
+            Assert.That(child.ParentType, Is.EqualTo(typeof(FamilyTestVariant)));
+            Assert.That(ScriptableVariantAssetUtility.SetParent(child, parent, out var error), Is.True);
+            Assert.That(error, Is.Null);
+            Assert.That(child.Number, Is.EqualTo(12));
+            Assert.That(child.Extra, Is.EqualTo(7));
+            Assert.That(child.IsOverridden("_extra"), Is.False);
+
+            parent.SetNumber(99);
+            child.SetExtra(8);
+
+            Assert.That(child.Number, Is.EqualTo(99));
+            Assert.That(child.Extra, Is.EqualTo(8));
+
+            var reversed = CreateVariant<FamilyTestVariant>();
+            Assert.That(reversed.CanAssignParent(child, out error), Is.True);
+            Assert.That(CreateVariant().CanAssignParent(parent, out error), Is.False);
+        }
+
+        [Test]
         public void GenericConvenienceBaseStillProvidesTypedParent()
         {
             var parent = CreateVariant<TypedTestVariant>();
@@ -458,6 +498,36 @@ namespace DCFApixels.ScriptableVariants.Tests
 
     public sealed class TestVariant : TestVariantBase
     {
+    }
+
+    public sealed class OtherTestVariant : TestVariantBase
+    {
+    }
+
+    [VariantTypeSelection(typeof(FamilyTestVariant))]
+    public class FamilyTestVariant : TestVariantBase
+    {
+    }
+
+    public sealed class FamilyChildTestVariant : FamilyTestVariant
+    {
+        [SerializeField]
+        private int _extra;
+
+        public int Extra
+        {
+            get
+            {
+                EnsureResolved();
+                return _extra;
+            }
+        }
+
+        public void SetExtra(int value)
+        {
+            _extra = value;
+            EditorNotifyValuesChanged();
+        }
     }
 
     public sealed class TypedTestVariant : ScriptableVariant<TypedTestVariant>

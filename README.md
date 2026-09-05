@@ -115,7 +115,10 @@ protected base method and call `base` so automatic invalidation remains active.
 - `[SerializeReference]` values are overridden as a whole managed reference.
 - Unity object references and built-in Unity values are overridden as a whole value.
 - Add `[VariantLocal]` to a serialized field that must always remain local.
-- Parent and child assets must have exactly the same concrete type.
+- Parent and child assets must have exactly the same concrete type, unless the class carries
+  `[VariantTypeSelection(typeof(T))]`. Then any asset assignable to `T` is accepted and offered
+  by the **Parent** picker, and the attribute is inherited by subclasses. Fields the chosen parent
+  type does not declare stay local on the child.
 - A cyclic parent chain is rejected by the Inspector and guarded against at runtime.
 
 Override identifiers use Unity property paths. Fields renamed with `[FormerlySerializedAs]`
