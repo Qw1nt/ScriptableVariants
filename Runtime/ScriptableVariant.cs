@@ -286,6 +286,23 @@ namespace DCFApixels.ScriptableVariants
             ResolveOverrideChanges();
         }
 
+        internal void EditorAddOverrides(IReadOnlyList<string> propertyPaths)
+        {
+            if (propertyPaths == null || propertyPaths.Count == 0 || _variantParent == null)
+            {
+                return;
+            }
+
+            EnsureResolved();
+            NormalizeOverridePaths();
+            for (var i = 0; i < propertyPaths.Count; i++)
+            {
+                AddOverridePath(propertyPaths[i]);
+            }
+
+            ResolveOverrideChanges();
+        }
+
         internal void EditorClearOverrides()
         {
             if (_variantOverrides.Count == 0)

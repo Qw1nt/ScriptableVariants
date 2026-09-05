@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using DCFApixels.ScriptableVariants.Editor;
 using NUnit.Framework;
+using UnityEditor;
 using UnityEngine;
 
 namespace DCFApixels.ScriptableVariants.Tests
@@ -306,6 +307,32 @@ namespace DCFApixels.ScriptableVariants.Tests
 
             TypedTestVariant typedParent = child.Parent;
             Assert.That(typedParent, Is.SameAs(parent));
+        }
+
+        [Test]
+        public void OverrideChangedValuesOverridesOnlyDifferingLeavesBeforeApply()
+        {
+            var parent = CreateVariant();
+            parent.SetNested(5, "parent");
+
+            var child = CreateVariant();
+            child.EditorSetParent(parent);
+
+            using (var serializedChild = new SerializedObject(child))
+            {
+                serializedChild.FindProperty("_nested._label").stringValue = "child";
+                ScriptableVariantAssetUtility.OverrideChangedValues(child, "_nested", serializedChild);
+                serializedChild.ApplyModifiedProperties();
+            }
+
+            Assert.That(child.IsOverridden("_nested._label"), Is.True);
+            Assert.That(child.IsOverridden("_nested._amount"), Is.False);
+            Assert.That(child.NestedLabel, Is.EqualTo("child"));
+
+            parent.SetNested(8, "updated");
+
+            Assert.That(child.NestedAmount, Is.EqualTo(8));
+            Assert.That(child.NestedLabel, Is.EqualTo("child"));
         }
 
         private TestVariant CreateVariant()

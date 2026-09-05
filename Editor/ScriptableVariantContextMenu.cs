@@ -63,6 +63,42 @@ namespace DCFApixels.ScriptableVariants.Editor
                 DropdownMenuAction.AlwaysEnabled);
         }
 
+        internal static void Populate(
+            GenericMenu menu,
+            ScriptableVariant variant,
+            string propertyPath,
+            Action afterChange = null)
+        {
+            if (!CanHandle(variant, propertyPath))
+            {
+                return;
+            }
+
+            if (variant.EditorGetOverridesAffectingSubtree(propertyPath).Length == 0)
+            {
+                menu.AddItem(
+                    OverridePropertyLabel,
+                    false,
+                    () => Execute(
+                        () => ScriptableVariantAssetUtility.SetOverride(variant, propertyPath, true),
+                        afterChange));
+                return;
+            }
+
+            menu.AddItem(
+                ApplyToParentLabel,
+                false,
+                () => Execute(
+                    () => ScriptableVariantAssetUtility.ApplyToParent(variant, propertyPath),
+                    afterChange));
+            menu.AddItem(
+                RevertLabel,
+                false,
+                () => Execute(
+                    () => ScriptableVariantAssetUtility.Revert(variant, propertyPath),
+                    afterChange));
+        }
+
         private static void PopulatePropertyMenu(GenericMenu menu, SerializedProperty property)
         {
             if (property == null || property.serializedObject == null ||
@@ -74,30 +110,7 @@ namespace DCFApixels.ScriptableVariants.Editor
                 return;
             }
 
-            var propertyPath = property.propertyPath;
-            if (variant.EditorGetOverridesAffectingSubtree(propertyPath).Length == 0)
-            {
-                menu.AddItem(
-                    OverridePropertyLabel,
-                    false,
-                    () => Execute(
-                        () => ScriptableVariantAssetUtility.SetOverride(variant, propertyPath, true),
-                        null));
-                return;
-            }
-
-            menu.AddItem(
-                ApplyToParentLabel,
-                false,
-                () => Execute(
-                    () => ScriptableVariantAssetUtility.ApplyToParent(variant, propertyPath),
-                    null));
-            menu.AddItem(
-                RevertLabel,
-                false,
-                () => Execute(
-                    () => ScriptableVariantAssetUtility.Revert(variant, propertyPath),
-                    null));
+            Populate(menu, variant, property.propertyPath);
         }
 
         private static bool CanHandle(ScriptableVariant variant, string propertyPath)

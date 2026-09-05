@@ -15,7 +15,10 @@
     "overrideReferences": false,
     "precompiledReferences": [],
     "autoReferenced": true,
-    "defineConstraints": [],
+    "defineConstraints": [
+        "DCFA_SCRIPTABLE_VARIANTS_TRI_2",
+        "!ODIN_INSPECTOR || SCRIPTABLE_VARIANTS_PREFER_TRI"
+    ],
     "versionDefines": [
         {
             "name": "com.codewriter.triinspector",

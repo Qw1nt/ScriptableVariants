@@ -152,9 +152,6 @@ namespace DCFApixels.ScriptableVariants.TriInspector.Editor
             private const float OverrideHitAreaHeight = 20f;
             private const string BaseFieldClassName = "unity-base-field";
 
-            private static readonly Color OverrideColor = new Color32(47, 145, 255, 255);
-            private static readonly Color ChildOverrideColor = new Color32(47, 145, 255, 150);
-
             private readonly TriProperty _property;
             private readonly ScriptableVariant _variant;
             private readonly string _propertyPath;
@@ -271,40 +268,12 @@ namespace DCFApixels.ScriptableVariants.TriInspector.Editor
 
                 _overrideHitArea.style.display = DisplayStyle.Flex;
 
-                var exact = _variant.IsOverridden(_propertyPath);
-                var locallyControlled = _variant.IsLocallyControlled(_propertyPath);
-                var controlledByAncestor = locallyControlled && !exact;
-                var hasChildren = _variant.HasOverridesBelow(_propertyPath);
-
-                if (controlledByAncestor)
-                {
-                    _overrideBar.style.backgroundColor = Color.clear;
-                    _overrideHitArea.tooltip =
-                        "Controlled by an owning property override. Right-click to apply or revert it.";
-                }
-                else if (exact)
-                {
-                    _overrideBar.style.backgroundColor = OverrideColor;
-                    _overrideHitArea.tooltip =
-                        "Local override. Right-click to apply it to the parent or revert it.";
-                }
-                else if (hasChildren)
-                {
-                    _overrideBar.style.backgroundColor = ChildOverrideColor;
-                    _overrideHitArea.tooltip =
-                        "Contains local child overrides. Right-click to apply or revert the subtree.";
-                }
-                else
-                {
-                    var source = _variant.GetValueSource(_propertyPath);
-                    _overrideBar.style.backgroundColor = Color.clear;
-                    _overrideHitArea.tooltip = source != null
-                        ? $"Inherited from {source.name}. Right-click to override."
-                        : "Inherited. Right-click to override.";
-                }
+                var state = ScriptableVariantGUI.GetOverrideState(_variant, _propertyPath);
+                _overrideBar.style.backgroundColor = state.BarColor;
+                _overrideHitArea.tooltip = state.Tooltip;
 
                 UpdateOverridePosition();
-                SetOverrideTextBold(locallyControlled);
+                SetOverrideTextBold(state.LocallyControlled);
             }
 
             private void UpdateOverridePosition()

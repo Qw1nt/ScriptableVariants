@@ -13,6 +13,12 @@
     "precompiledReferences": [],
     "autoReferenced": true,
     "defineConstraints": [],
-    "versionDefines": [],
+    "versionDefines": [
+        {
+            "name": "com.codewriter.triinspector",
+            "expression": "2.0.0",
+            "define": "DCFA_SCRIPTABLE_VARIANTS_TRI_2"
+        }
+    ],
     "noEngineReferences": false
 }

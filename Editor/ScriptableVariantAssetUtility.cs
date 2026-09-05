@@ -182,6 +182,60 @@ namespace DCFApixels.ScriptableVariants.Editor
             MarkChanged(variant);
         }
 
+        /// <summary>
+        /// Creates overrides for every atomic path at or below <paramref name="propertyPath"/> whose value
+        /// differs from the parent. Pass <paramref name="childObject"/> when the edited values are still
+        /// pending in a SerializedObject and have not been applied to the asset yet.
+        /// </summary>
+        public static void OverrideChangedValues(
+            ScriptableVariant variant,
+            string propertyPath,
+            SerializedObject childObject = null)
+        {
+            if (variant == null || variant.Parent == null || string.IsNullOrEmpty(propertyPath))
+            {
+                return;
+            }
+
+            variant.Parent.EnsureResolved();
+            var ownsChildObject = childObject == null;
+            if (ownsChildObject)
+            {
+                variant.EnsureResolved();
+                childObject = new SerializedObject(variant);
+            }
+
+            try
+            {
+                using (var parentObject = new SerializedObject(variant.Parent))
+                {
+                    var root = childObject.FindProperty(propertyPath);
+                    if (root == null)
+                    {
+                        return;
+                    }
+
+                    var paths = GetDifferingOverridePaths(childObject, parentObject, root);
+                    paths.RemoveAll(variant.IsLocallyControlled);
+                    if (paths.Count == 0)
+                    {
+                        return;
+                    }
+
+                    Undo.RecordObject(variant, "Override Variant Property");
+                    variant.EditorAddOverrides(paths);
+                    MarkChanged(variant);
+                }
+            }
+            finally
+            {
+                if (ownsChildObject)
+                {
+                    childObject.Dispose();
+                }
+            }
+        }
+
         internal static bool ValueMatchesParent(ScriptableVariant variant, string propertyPath)
         {
             if (variant == null || variant.Parent == null || string.IsNullOrEmpty(propertyPath))
@@ -210,45 +264,57 @@ namespace DCFApixels.ScriptableVariants.Editor
             variant.EnsureResolved();
             parent.EnsureResolved();
 
-            var result = new List<string>();
-            var variantType = variant.GetType();
             using (var childObject = new SerializedObject(variant))
             using (var parentObject = new SerializedObject(parent))
             {
-                childObject.Update();
-                parentObject.Update();
+                return GetDifferingOverridePaths(childObject, parentObject, null);
+            }
+        }
 
-                var childProperty = childObject.GetIterator();
+        /// <summary>
+        /// Collects the atomic paths, at or below <paramref name="root"/> or in the whole object when it is null,
+        /// whose serialized values differ between the child and the parent.
+        /// </summary>
+        private static List<string> GetDifferingOverridePaths(
+            SerializedObject childObject,
+            SerializedObject parentObject,
+            SerializedProperty root)
+        {
+            var variantType = childObject.targetObject.GetType();
+            var result = new List<string>();
+            var property = root != null ? root.Copy() : childObject.GetIterator();
+            var end = root?.GetEndProperty();
+            if (root == null && !property.Next(true))
+            {
+                return result;
+            }
+
+            do
+            {
                 var enterChildren = true;
-                while (childProperty.Next(enterChildren))
+                var propertyPath = property.propertyPath;
+                var parentProperty = VariantSerialization.IsKnownPath(variantType, propertyPath)
+                    ? parentObject.FindProperty(propertyPath)
+                    : null;
+                if (parentProperty != null)
                 {
-                    enterChildren = true;
-                    var propertyPath = childProperty.propertyPath;
-                    if (!VariantSerialization.IsKnownPath(variantType, propertyPath))
-                    {
-                        continue;
-                    }
-
-                    var parentProperty = parentObject.FindProperty(propertyPath);
-                    if (parentProperty == null)
-                    {
-                        continue;
-                    }
-
-                    if (SerializedProperty.DataEquals(childProperty, parentProperty))
+                    if (SerializedProperty.DataEquals(property, parentProperty))
                     {
                         enterChildren = false;
-                        continue;
                     }
-
-                    if (VariantSerialization.IsAtomicOverridePath(variantType, propertyPath) ||
-                        !childProperty.hasChildren)
+                    else if (VariantSerialization.IsAtomicOverridePath(variantType, propertyPath) ||
+                             !property.hasChildren)
                     {
                         result.Add(propertyPath);
                         enterChildren = false;
                     }
                 }
-            }
+
+                if (!property.Next(enterChildren))
+                {
+                    break;
+                }
+            } while (end == null || !SerializedProperty.EqualContents(property, end));
 
             return result;
         }

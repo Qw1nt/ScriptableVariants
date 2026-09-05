@@ -1,41 +1,43 @@
 # Scriptable Variants
 
 `ScriptableVariants` adds single-parent value inheritance and per-property overrides to
-Unity `ScriptableObject` assets. Its Inspector integration is built on Tri Inspector 2.
+Unity `ScriptableObject` assets. It ships a built-in Inspector and optional integrations for
+Odin Inspector and Tri Inspector 2.
 
 ## Requirements and installation
 
 - Unity 6000.0 or newer.
-- Tri Inspector 2 at commit `f3239650e307275edd06c25e7cda1fdc7207f5b5`.
+- Optional: Odin Inspector 3.x or newer, or Tri Inspector 2 at commit
+  `f3239650e307275edd06c25e7cda1fdc7207f5b5`.
 
-Unity Package Manager does not support a Git package declaring another Git package as a
-transitive dependency. Add both Git dependencies to the consuming project's
-`Packages/manifest.json`:
+Add the package to the consuming project's `Packages/manifest.json`:
 
 ```json
 {
   "dependencies": {
-    "com.codewriter.triinspector": "https://github.com/codewriter-packages/Tri-Inspector.git#f3239650e307275edd06c25e7cda1fdc7207f5b5",
     "com.dcfapixels.scriptable-variants": "https://github.com/DCFApixels/ScriptableVariants.git#v0.1.2"
   }
 }
 ```
 
-Alternatively, add Tri Inspector first and then use **Package Manager → Add package from git
-URL** with `https://github.com/DCFApixels/ScriptableVariants.git#v0.1.2`.
+Alternatively, use **Package Manager → Add package from git URL** with
+`https://github.com/DCFApixels/ScriptableVariants.git#v0.1.2`.
 Authentication must already be configured for the private repository's HTTPS or SSH URL.
+
+Tri Inspector is not a package dependency. To use it, add
+`"com.codewriter.triinspector": "https://github.com/codewriter-packages/Tri-Inspector.git#f3239650e307275edd06c25e7cda1fdc7207f5b5"`
+to the same manifest; the integration activates automatically.
 
 ## Quick start
 
 ```csharp
 using DCFApixels.ScriptableVariants;
-using TriInspector;
 using UnityEngine;
 
 [CreateAssetMenu(menuName = "Game/Weapon Config")]
 public sealed class WeaponConfig : ScriptableVariant
 {
-    [SerializeField, Min(0), Slider(0, 100)]
+    [SerializeField, Range(0, 100)]
     private float _damage = 10;
 
     [SerializeField]
@@ -120,17 +122,32 @@ Override identifiers use Unity property paths. Fields renamed with `[FormerlySer
 are remapped automatically. Unknown paths are reported in the Inspector and can be removed
 with **Remove Orphans**.
 
-## Tri Inspector
+## Inspector integrations
 
-The integration wraps Tri Inspector's existing visual-element drawer chain. Tri attributes
-such as groups, validation, conditionals, custom drawers, and value-change callbacks remain
-responsible for rendering the actual value field.
+The Inspector is selected automatically at compile time:
 
-Variant actions are added to Unity's property context menu. The blue override gutter has the
-same context menu as a fallback for custom Tri Inspector controls that consume the field event.
+| Installed                    | Editor used                                              |
+|------------------------------|----------------------------------------------------------|
+| Neither                      | Built-in IMGUI editor                                    |
+| Odin Inspector               | `OdinEditor` with an Odin value drawer for the gutter    |
+| Tri Inspector 2              | `TriEditor` with a Tri attribute drawer for the gutter   |
+| Odin Inspector and Tri Inspector | Odin. Add the `SCRIPTABLE_VARIANTS_PREFER_TRI` scripting define to use Tri instead. |
 
-The integration targets the pinned Tri Inspector commit above so preview API changes cannot
-silently break its editor bindings.
+Odin is detected through its `ODIN_INSPECTOR` define; Tri through the `com.codewriter.triinspector`
+package version. Every editor shares the same header, override gutter, bold labels, automatic
+override creation on edit, and context actions.
+
+Variant actions are added to Unity's property context menu and to Odin's property context menu.
+The blue override gutter has the same context menu as a fallback for custom controls that consume
+the field event.
+
+The built-in editor draws override bars for top-level properties only; nested fields are still
+overridden individually and can be reverted or applied from the property context menu.
+
+The Tri integration wraps Tri Inspector's existing visual-element drawer chain and targets the
+pinned Tri Inspector commit above so preview API changes cannot silently break its editor
+bindings. The Odin integration wraps Odin's drawer chain the same way, so groups, validation,
+conditionals, and custom drawers keep rendering the actual value field.
 
 ## Sample
 

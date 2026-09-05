@@ -4,6 +4,16 @@ All notable changes to this package are documented in this file.
 
 ## Unreleased
 
+- Removed the hard dependency on Tri Inspector. The Tri integration now compiles only when
+  Tri Inspector 2 is installed.
+- Added an Odin Inspector integration with the same header, override gutter, bold labels,
+  automatic overrides on edit, and context actions.
+- Added a built-in IMGUI editor used when neither Odin Inspector nor Tri Inspector is installed.
+- When both Odin and Tri are installed, Odin is used; the `SCRIPTABLE_VARIANTS_PREFER_TRI`
+  scripting define selects Tri instead.
+- Added `ScriptableVariantAssetUtility.OverrideChangedValues` for custom editors that need
+  automatic overrides after a value change.
+
 ## 0.1.2 - 2026-09-04
 
 - Made non-generic `ScriptableVariant` the primary API while retaining
