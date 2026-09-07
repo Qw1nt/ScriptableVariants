@@ -67,12 +67,11 @@ namespace DCFApixels.ScriptableVariants.Editor
                 }
             }
 
+            serializedObject.ApplyModifiedProperties();
             if (changedPath != null)
             {
-                ScriptableVariantAssetUtility.OverrideChangedValues(variant, changedPath, serializedObject);
+                ScriptableVariantAssetUtility.OverrideChangedValues(variant, changedPath);
             }
-
-            serializedObject.ApplyModifiedProperties();
         }
     }
 }

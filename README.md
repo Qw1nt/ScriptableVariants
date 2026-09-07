@@ -43,14 +43,7 @@ public sealed class WeaponConfig : ScriptableVariant
     [SerializeField]
     private WeaponVisuals _visuals;
 
-    public float Damage
-    {
-        get
-        {
-            EnsureResolved();
-            return _damage;
-        }
-    }
+    public float Damage => _damage;
 }
 ```
 
@@ -98,15 +91,26 @@ preserving all currently effective values.
 
 ## Runtime contract
 
-Inherited values are materialized into the child object when it is enabled and whenever
-`EnsureResolved()` is called. Reflection and deep copies occur only while resolving; normal
-field/property reads do not walk the parent chain.
+Inherited values are materialized into the child object once, in `OnEnable`. Changing a parent
+re-materializes every loaded descendant immediately, so plain field reads stay current, like
+prefab variants. Descendants that are not loaded resolve when they load. Reflection and deep
+copies occur only while resolving; normal field/property reads do not walk the parent chain.
 
-Prefer private serialized fields and read-only public properties that call `EnsureResolved()`.
-If code changes serialized values at runtime, call `InvalidateResolvedData()` afterwards.
+A change propagates when it is made through the package's Inspector editors, through the editor
+actions and context menu, through Undo/Redo while the asset's Inspector is open, or when code
+calls `InvalidateResolvedData()` after writing fields directly. The package does not use
+`OnValidate`, so asset import, domain reload, and idle Inspector repaints do no extra work.
+Editor scripts that write variant fields must call `InvalidateResolvedData()` themselves.
 
-If a derived class implements `OnEnable`, `OnDisable`, or `OnValidate`, it must override the
-protected base method and call `base` so automatic invalidation remains active.
+Call `EnsureResolved()` only when values are read before `OnEnable` has run. The call is
+allocation-free and returns immediately when nothing changed.
+
+Saving a parent asset also saves its loaded descendants, so the materialized values stored in
+their files do not go stale. Descendants that are not loaded update their files when they are
+next loaded and saved; their values in memory are always current.
+
+If a derived class implements `OnEnable` or `OnDisable`, it must override the protected base
+method and call `base` so materialization and change propagation remain active.
 
 ## Override boundaries
 

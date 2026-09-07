@@ -16,6 +16,14 @@ All notable changes to this package are documented in this file.
 - Added `[VariantTypeSelection(typeof(T))]` and `ScriptableVariant.ParentType`. The attribute
   widens the accepted parent type from the exact concrete type to any asset assignable to `T`;
   fields the parent type does not declare stay local.
+- Changing a parent now re-materializes every loaded descendant immediately instead of lazily on
+  the next `EnsureResolved()`. `InvalidateResolvedData()` does the same for changes made from code.
+- Removed the `OnValidate` override. Nothing runs on asset import, domain reload, or Inspector
+  repaint any more; change propagation is driven by the package editors, editor actions, Undo/Redo,
+  and `InvalidateResolvedData()`. `EnsureResolved()` no longer allocates.
+- Saving a parent asset also saves its loaded descendants so the materialized values on disk stay
+  current.
+- Added `ScriptableVariant.IsDescendantOf` and `ScriptableVariant.GetLoadedDescendants`.
 
 ## 0.1.2 - 2026-09-04
 

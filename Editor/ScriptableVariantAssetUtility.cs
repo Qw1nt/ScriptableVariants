@@ -183,57 +183,39 @@ namespace DCFApixels.ScriptableVariants.Editor
         }
 
         /// <summary>
-        /// Creates overrides for every atomic path at or below <paramref name="propertyPath"/> whose value
-        /// differs from the parent. Pass <paramref name="childObject"/> when the edited values are still
-        /// pending in a SerializedObject and have not been applied to the asset yet.
+        /// Call after the value at <paramref name="propertyPath"/> has been written to the asset by an editor.
+        /// Creates overrides for every atomic path at or below it whose value differs from the parent and
+        /// propagates the change to loaded descendants.
         /// </summary>
-        public static void OverrideChangedValues(
-            ScriptableVariant variant,
-            string propertyPath,
-            SerializedObject childObject = null)
+        public static void OverrideChangedValues(ScriptableVariant variant, string propertyPath)
         {
-            if (variant == null || variant.Parent == null || string.IsNullOrEmpty(propertyPath))
+            if (variant == null)
             {
                 return;
             }
 
-            variant.Parent.EnsureResolved();
-            var ownsChildObject = childObject == null;
-            if (ownsChildObject)
+            if (variant.Parent != null && !string.IsNullOrEmpty(propertyPath))
             {
-                variant.EnsureResolved();
-                childObject = new SerializedObject(variant);
-            }
-
-            try
-            {
+                variant.Parent.EnsureResolved();
+                using (var childObject = new SerializedObject(variant))
                 using (var parentObject = new SerializedObject(variant.Parent))
                 {
                     var root = childObject.FindProperty(propertyPath);
-                    if (root == null)
-                    {
-                        return;
-                    }
-
-                    var paths = GetDifferingOverridePaths(childObject, parentObject, root);
+                    var paths = root != null
+                        ? GetDifferingOverridePaths(childObject, parentObject, root)
+                        : new List<string>();
                     paths.RemoveAll(variant.IsLocallyControlled);
-                    if (paths.Count == 0)
+                    if (paths.Count > 0)
                     {
+                        Undo.RecordObject(variant, "Override Variant Property");
+                        variant.EditorAddOverrides(paths);
+                        MarkChanged(variant);
                         return;
                     }
+                }
+            }
 
-                    Undo.RecordObject(variant, "Override Variant Property");
-                    variant.EditorAddOverrides(paths);
-                    MarkChanged(variant);
-                }
-            }
-            finally
-            {
-                if (ownsChildObject)
-                {
-                    childObject.Dispose();
-                }
-            }
+            NotifyValuesChanged(variant);
         }
 
         internal static bool ValueMatchesParent(ScriptableVariant variant, string propertyPath)

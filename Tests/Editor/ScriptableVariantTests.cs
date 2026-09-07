@@ -350,7 +350,7 @@ namespace DCFApixels.ScriptableVariants.Tests
         }
 
         [Test]
-        public void OverrideChangedValuesOverridesOnlyDifferingLeavesBeforeApply()
+        public void OverrideChangedValuesOverridesOnlyDifferingLeaves()
         {
             var parent = CreateVariant();
             parent.SetNested(5, "parent");
@@ -361,9 +361,10 @@ namespace DCFApixels.ScriptableVariants.Tests
             using (var serializedChild = new SerializedObject(child))
             {
                 serializedChild.FindProperty("_nested._label").stringValue = "child";
-                ScriptableVariantAssetUtility.OverrideChangedValues(child, "_nested", serializedChild);
                 serializedChild.ApplyModifiedProperties();
             }
+
+            ScriptableVariantAssetUtility.OverrideChangedValues(child, "_nested");
 
             Assert.That(child.IsOverridden("_nested._label"), Is.True);
             Assert.That(child.IsOverridden("_nested._amount"), Is.False);
@@ -373,6 +374,73 @@ namespace DCFApixels.ScriptableVariants.Tests
 
             Assert.That(child.NestedAmount, Is.EqualTo(8));
             Assert.That(child.NestedLabel, Is.EqualTo("child"));
+        }
+
+        [Test]
+        public void ParentChangesPropagateToLoadedDescendantsImmediately()
+        {
+            var parent = CreateVariant();
+            parent.SetNumber(1);
+
+            var child = CreateVariant();
+            child.EditorSetParent(parent);
+            var grandchild = CreateVariant();
+            grandchild.EditorSetParent(child);
+
+            parent.SetNumber(2);
+
+            Assert.That(child.RawNumber, Is.EqualTo(2));
+            Assert.That(grandchild.RawNumber, Is.EqualTo(2));
+
+            child.EditorSetOverride("_number", true);
+            child.SetNumber(5);
+
+            Assert.That(grandchild.RawNumber, Is.EqualTo(5));
+
+            ScriptableVariantAssetUtility.Revert(child, "_number");
+
+            Assert.That(child.RawNumber, Is.EqualTo(2));
+            Assert.That(grandchild.RawNumber, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void RootEditPropagatesThroughOverrideChangedValuesWithoutOnValidate()
+        {
+            var parent = CreateVariant();
+            parent.SetNumber(1);
+
+            var child = CreateVariant();
+            child.EditorSetParent(parent);
+
+            using (var serializedParent = new SerializedObject(parent))
+            {
+                serializedParent.FindProperty("_number").intValue = 3;
+                serializedParent.ApplyModifiedProperties();
+            }
+
+            Assert.That(child.RawNumber, Is.EqualTo(1));
+
+            ScriptableVariantAssetUtility.OverrideChangedValues(parent, "_number");
+
+            Assert.That(child.RawNumber, Is.EqualTo(3));
+            Assert.That(parent.OverridePaths, Is.Empty);
+        }
+
+        [Test]
+        public void GetLoadedDescendantsReturnsDescendantsOnly()
+        {
+            var parent = CreateVariant();
+            var child = CreateVariant();
+            var grandchild = CreateVariant();
+            var sibling = CreateVariant();
+            child.EditorSetParent(parent);
+            grandchild.EditorSetParent(child);
+
+            Assert.That(parent.GetLoadedDescendants(), Is.EquivalentTo(new ScriptableVariant[] {child, grandchild}));
+            Assert.That(child.GetLoadedDescendants(), Is.EquivalentTo(new ScriptableVariant[] {grandchild}));
+            Assert.That(grandchild.IsDescendantOf(parent), Is.True);
+            Assert.That(sibling.IsDescendantOf(parent), Is.False);
+            Assert.That(parent.IsDescendantOf(parent), Is.False);
         }
 
         private TestVariant CreateVariant()
@@ -464,6 +532,9 @@ namespace DCFApixels.ScriptableVariants.Tests
         }
 
         public string LocalNote => _localNote;
+
+        /// <summary>Reads the field without resolving, to observe eager propagation.</summary>
+        public int RawNumber => _number;
 
         public void SetNumber(int value)
         {

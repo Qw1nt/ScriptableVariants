@@ -31,10 +31,15 @@ namespace DCFApixels.ScriptableVariants.OdinInspector.Editor
             _propertyPath = Property.UnityPropertyPath;
 
             ValueEntry.OnValueChanged += OnValueChanged;
-            ValueEntry.OnChildValueChanged += OnValueChanged;
-            if (Property.ChildResolver is ICollectionResolver collectionResolver)
+            if (VariantSerialization.IsAtomicOverridePath(_variant.GetType(), _propertyPath))
             {
-                collectionResolver.OnAfterChange += OnCollectionChanged;
+                // Leaves of inline composites carry their own drawer. Atomic values (collections, managed
+                // references, Unity structs) only report nested edits through the parent property.
+                ValueEntry.OnChildValueChanged += OnValueChanged;
+                if (Property.ChildResolver is ICollectionResolver collectionResolver)
+                {
+                    collectionResolver.OnAfterChange += OnCollectionChanged;
+                }
             }
         }
 

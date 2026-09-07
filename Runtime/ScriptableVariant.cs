@@ -92,20 +92,58 @@ namespace DCFApixels.ScriptableVariants
 
         /// <summary>
         /// Ensures that every non-overridden serialized field contains its effective inherited value.
-        /// Call this before reading fields from performance-sensitive code that can run before OnEnable.
+        /// Only needed before OnEnable has run; the call is allocation-free and returns immediately when nothing changed.
         /// </summary>
         public void EnsureResolved()
         {
-            var stack = new HashSet<ScriptableVariant>(ReferenceComparer.Instance);
-            EnsureResolved(stack);
+            Resolve();
         }
 
         /// <summary>
-        /// Invalidates this asset and all currently loaded descendants. Use this after changing values from code.
+        /// Invalidates this asset and immediately re-materializes every currently loaded descendant.
+        /// Call this after changing values from code. Descendants that are not loaded resolve when they load.
         /// </summary>
         public void InvalidateResolvedData()
         {
-            InvalidateHierarchy(this, new HashSet<ScriptableVariant>(ReferenceComparer.Instance));
+            _resolutionDirty = true;
+            var descendants = GetLoadedDescendants();
+            for (var i = 0; i < descendants.Count; i++)
+            {
+                descendants[i]._resolutionDirty = true;
+            }
+
+            for (var i = 0; i < descendants.Count; i++)
+            {
+                descendants[i].EnsureResolved();
+            }
+        }
+
+        /// <summary>Returns every loaded asset that inherits, directly or indirectly, from this asset.</summary>
+        public List<ScriptableVariant> GetLoadedDescendants()
+        {
+            var result = new List<ScriptableVariant>();
+            CollectLoadedDescendants(this, new HashSet<ScriptableVariant>(ReferenceComparer.Instance), result);
+            return result;
+        }
+
+        /// <summary>Returns true when <paramref name="ancestor"/> appears anywhere in this asset's parent chain.</summary>
+        public bool IsDescendantOf(ScriptableVariant ancestor)
+        {
+            if (ancestor == null)
+            {
+                return false;
+            }
+
+            var visited = new HashSet<ScriptableVariant>(ReferenceComparer.Instance);
+            for (var current = _variantParent; current != null && visited.Add(current); current = current._variantParent)
+            {
+                if (ReferenceEquals(current, ancestor))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>Returns true when the exact property path has a local override.</summary>
@@ -152,7 +190,6 @@ namespace DCFApixels.ScriptableVariants
         protected virtual void OnEnable()
         {
             RegisterActive(this);
-            _resolutionDirty = true;
             EnsureResolved();
         }
 
@@ -160,14 +197,6 @@ namespace DCFApixels.ScriptableVariants
         {
             UnregisterActive(this);
         }
-
-#if UNITY_EDITOR
-        protected virtual void OnValidate()
-        {
-            EditorNotifyValuesChanged();
-            EnsureResolved();
-        }
-#endif
 
         void ISerializationCallbackReceiver.OnBeforeSerialize()
         {
@@ -430,7 +459,6 @@ namespace DCFApixels.ScriptableVariants
 
         internal ScriptableVariant GetValueSource(string propertyPath)
         {
-            EnsureResolved();
             if (_variantParent == null || IsLocallyControlled(propertyPath))
             {
                 return this;
@@ -452,9 +480,10 @@ namespace DCFApixels.ScriptableVariants
                 : parentType.IsInstanceOfType(candidate);
         }
 
-        private bool EnsureResolved(HashSet<ScriptableVariant> stack)
+        private bool Resolve()
         {
-            if (_isResolving || !stack.Add(this))
+            // _isResolving marks every asset on the current resolution chain, so re-entry means a cycle.
+            if (_isResolving)
             {
                 LogResolutionErrorOnce("Cyclic Scriptable Variant inheritance detected.");
                 return false;
@@ -467,7 +496,7 @@ namespace DCFApixels.ScriptableVariants
 
                 var parent = _variantParent;
                 var parentIsUsable = parent == null ||
-                                     IsCompatibleParent(parent) && parent.EnsureResolved(stack);
+                                     IsCompatibleParent(parent) && parent.Resolve();
                 if (!parentIsUsable)
                 {
                     LogResolutionErrorOnce("Scriptable Variant parent is incompatible or cyclic. Local values are used.");
@@ -499,7 +528,6 @@ namespace DCFApixels.ScriptableVariants
             finally
             {
                 _isResolving = false;
-                stack.Remove(this);
             }
         }
 
@@ -656,14 +684,15 @@ namespace DCFApixels.ScriptableVariants
             ActiveVariants.Remove(variant);
         }
 
-        private static void InvalidateHierarchy(ScriptableVariant root, HashSet<ScriptableVariant> visited)
+        private static void CollectLoadedDescendants(
+            ScriptableVariant root,
+            HashSet<ScriptableVariant> visited,
+            List<ScriptableVariant> result)
         {
             if (root == null || !visited.Add(root))
             {
                 return;
             }
-
-            root._resolutionDirty = true;
 
             for (var i = ActiveVariants.Count - 1; i >= 0; i--)
             {
@@ -674,9 +703,10 @@ namespace DCFApixels.ScriptableVariants
                     continue;
                 }
 
-                if (ReferenceEquals(candidate._variantParent, root))
+                if (ReferenceEquals(candidate._variantParent, root) && !visited.Contains(candidate))
                 {
-                    InvalidateHierarchy(candidate, visited);
+                    result.Add(candidate);
+                    CollectLoadedDescendants(candidate, visited, result);
                 }
             }
         }
